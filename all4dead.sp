@@ -70,10 +70,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *     - Worked around RoundEnd being called twice! (once at the end of a round and again just before a new round starts) 
 * Version 1.4.5
 *			- Removed force versus feature (it was an ugly hack and is no longer necessary now all maps are playable on versus)
+* Version 1.4.6
+*     - Added 'Back' functionality to the submenus to make navigation of the menu system easier
 */
 
 /* Define constants */
-#define PLUGIN_VERSION    "1.4.5"
+#define PLUGIN_VERSION    "1.4.6"
 #define PLUGIN_NAME       "All4Dead"
 #define PLUGIN_TAG  	  	"[A4D] "
 #define MAX_PLAYERS				14		
@@ -776,6 +778,7 @@ public Action:Menu_Director(client, args)
 {
 	new Handle:menu = CreateMenu(MenuHandler_Director)
 	SetMenuTitle(menu, "Director Commands")
+	SetMenuExitBackButton(menu, true);
 	
 	AddMenuItem(menu, "fp", "Force a panic event to start")
 	if (GetConVarBool(FindConVar("director_panic_forever"))) { AddMenuItem(menu, "pf", "End non-stop panic events"); } else { AddMenuItem(menu, "pf", "Force non-stop panic events"); }
@@ -838,6 +841,14 @@ public MenuHandler_Director(Handle:menu, MenuAction:action, cindex, itempos) {
 	{
 		CloseHandle(menu)
 	}
+	/* If someone presses 'back' (8), return to main All4Dead menu */
+	else if (action == MenuAction_Cancel)
+	{
+		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
+		{
+			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
+		}
+	}
 }
 
 
@@ -846,6 +857,7 @@ public Action:Menu_SpawnInfected(client, args)
 {
 	new Handle:menu = CreateMenu(MenuHandler_SpawnInfected)
 	SetMenuTitle(menu, "Spawn Infected")
+	SetMenuExitBackButton(menu, true);
 	AddMenuItem(menu, "st", "Spawn a tank")
 	AddMenuItem(menu, "sw", "Spawn a witch")
 	AddMenuItem(menu, "sb", "Spawn a boomer")
@@ -891,12 +903,21 @@ public MenuHandler_SpawnInfected(Handle:menu, MenuAction:action, cindex, itempos
 	{
 		CloseHandle(menu)
 	}
+	/* If someone presses 'back' (8), return to main All4Dead menu */
+	else if (action == MenuAction_Cancel)
+	{
+		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
+		{
+			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
+		}
+	}
 }
 
 /* This menu deals with spawning weapons */
 public Action:Menu_SpawnWeapons(client, args) {
 	new Handle:menu = CreateMenu(MenuHandler_SpawnWeapons)
 	SetMenuTitle(menu, "Spawn Weapons")
+	SetMenuExitBackButton(menu, true);
 	AddMenuItem(menu, "sa", "Spawn an auto shotgun")
 	AddMenuItem(menu, "sh", "Spawn a hunting rifle")
 	AddMenuItem(menu, "sp", "Spawn a pistol")	
@@ -935,12 +956,21 @@ public MenuHandler_SpawnWeapons(Handle:menu, MenuAction:action, cindex, itempos)
 	{
 		CloseHandle(menu)
 	}
+	/* If someone presses 'back' (8), return to main All4Dead menu */
+	else if (action == MenuAction_Cancel)
+	{
+		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
+		{
+			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
+		}
+	}
 }
 
 /* This menu deals with spawning items */
 public Action:Menu_SpawnItems(client, args) {
 	new Handle:menu = CreateMenu(MenuHandler_SpawnItems)
 	SetMenuTitle(menu, "Spawn Items")
+	SetMenuExitBackButton(menu, true);
 	AddMenuItem(menu, "sg", "Spawn a gas tank")
 	AddMenuItem(menu, "sm", "Spawn a medkit")
 	AddMenuItem(menu, "sv", "Spawn a molotov")
@@ -979,6 +1009,14 @@ public MenuHandler_SpawnItems(Handle:menu, MenuAction:action, cindex, itempos) {
 	{
 		CloseHandle(menu)
 	}
+	/* If someone presses 'back' (8), return to main All4Dead menu */
+	else if (action == MenuAction_Cancel)
+	{
+		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
+		{
+			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
+		}
+	}
 }
 
 /* This menu deals with all Configuration commands that don't fit into another category */
@@ -986,6 +1024,7 @@ public Action:Menu_Config(client, args)
 {
 	new Handle:menu = CreateMenu(MenuHandler_Config)
 	SetMenuTitle(menu, "Configuration Commands")
+	SetMenuExitBackButton(menu, true);
 	if (GetConVarBool(NotifyPlayers)) { AddMenuItem(menu, "pn", "Disable player notifications"); } else { AddMenuItem(menu, "pn", "Enable player notifications"); }
 	AddMenuItem(menu, "rs", "Restore all settings to game defaults now")
 	SetMenuExitButton(menu, true)
@@ -1016,6 +1055,14 @@ public MenuHandler_Config(Handle:menu, MenuAction:action, cindex, itempos) {
 	{
 		CloseHandle(menu)
 	}
+	/* If someone presses 'back' (8), return to main All4Dead menu */
+	else if (action == MenuAction_Cancel)
+	{
+		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
+		{
+			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
+		}
+	}
 }
 
 
@@ -1023,6 +1070,7 @@ public MenuHandler_Config(Handle:menu, MenuAction:action, cindex, itempos) {
 public Action:Menu_Versus(client, args) {
 	new Handle:menu = CreateMenu(MenuHandler_Versus)
 	SetMenuTitle(menu, "Versus Settings")
+	SetMenuExitBackButton(menu, true);
 	if (GetConVarBool(FindConVar("sb_all_bot_team"))) { AddMenuItem(menu, "bc", "Require at least one human survivor"); } else { AddMenuItem(menu, "bc", "Allow the game to start with no human survivors"); }		
 	if (GetConVarBool(FindConVar("versus_boss_spawning"))) { AddMenuItem(menu, "ol", "Randomise the location of boss spawns"); } else { AddMenuItem(menu, "ol", "Disable randomising of boss spawns"); }
 	if (!GetConVarBool(FindConVar("versus_boss_spawning"))) {	
@@ -1065,6 +1113,14 @@ public MenuHandler_Versus(Handle:menu, MenuAction:action, cindex, itempos) {
 	else if (action == MenuAction_End)
 	{
 		CloseHandle(menu)
+	}
+	/* If someone presses 'back' (8), return to main All4Dead menu */
+	else if (action == MenuAction_Cancel)
+	{
+		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
+		{
+			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
+		}
 	}
 }
 
