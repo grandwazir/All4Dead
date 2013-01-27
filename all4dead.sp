@@ -10,85 +10,78 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/* All4Dead - A modification for the game Left4Dead */
-/* Copyright 2009 James Richardson */
+All4Dead - A modification for the game Left4DeadCopyright 2009 James Richardson
 
-/*
 * Version 1.0
 * 		- Initial release.
 * Version 1.1
 * 		- Added support for console and chat commands instead of using the menu
 * Version 1.2
 * 		- Changed name from "Overseer" to "All4Dead"
-*			- Added "a4d_spawn" to spawn infected without sv_cheats 1
-*			-	Added support for automatically resetting relevant game ConVars to defaults on a map change. 
-*     - Added "FCVAR_CHEAT" to all the CVARs. 
+*		- Added "a4d_spawn" to spawn infected without sv_cheats 1
+*		- Added support for automatically resetting relevant game ConVars to defaults on a map change. 
+*       - Added "FCVAR_CHEAT" to all the CVARs. 
 * Version 1.2.1
 * 		- Fixed a bug where manually spawned infected would spawn with little or no health.
 * Version 1.3
 * 		- Changed "a4d_spawn" to "a4d_spawn_infected"
 * 		- Added "a4d_spawn_weapon"
-* 		- Added "a4d_spawn_item"
-*			- Added commands to toggle all bot survivor teams.
+* 	    - Added "a4d_spawn_item"
+*       - Added commands to toggle all bot survivor teams.
 * 		- Added support for randomising boss locations in versus.
 * 		- Added support to ensure consistency of boss spawns between teams.
 * 		- Moved the automatic reset function to OnMapEnd instead of OnMapStart. Should resolve double tank bug.
 * Version 1.3.1
 * 		- Fixed bug with the arg string array being slightly too small for "a4d_spawn_item" and "a4d_spawn_weapon".
 * Version 1.4.0
-*			- Added feature which enforces versus mode across a series maps until the server hibernates.
-*			- Changed "toggle" commands to "enable" commands. More descriptive of what they actually do.
-*			- Cleaned up menus so they are easier to understand.
-*			- Fixed bug where we were not enforcing consistent boss types if the old versus logic was not enabled.
-*			- General code clean up.
-*			- Replaced "a4d_director_is_enabled" ConVar with an internal variable.
-*			- Replaced "a4d_vs_force_versus_mode" ConVar with an internal variable.
-*			- Removed "a4d_force_old_versus_logic" ConVar.
-*			- Removed feature for automatic reset of game settings. Instead settings are reverted when the server hibernates.
-*			- Seperated All4Dead configuation into cfg/sourcemod/plugin.all4dead
+*	    - Added feature which enforces versus mode across a series maps until the server hibernates.
+*       - Changed "toggle" commands to "enable" commands. More descriptive of what they actually do.
+*	    - Cleaned up menus so they are easier to understand.
+*		- Fixed bug where we were not enforcing consistent boss types if the old versus logic was not enabled.
+*		- General code clean up.
+*		- Replaced "a4d_director_is_enabled" ConVar with an internal variable.
+*		- Replaced "a4d_vs_force_versus_mode" ConVar with an internal variable.
+*		- Removed "a4d_force_old_versus_logic" ConVar.
+*		- Removed feature for automatic reset of game settings. Instead settings are reverted when the server hibernates.
+*		- Seperated All4Dead configuation into cfg/sourcemod/plugin.all4dead
 * Version 1.4.1
-*			- Fixed issue where players would get stuck in limbo if you disable versus mode.	
+*		- Fixed issue where players would get stuck in limbo if you disable versus mode.	
 * Version 1.4.2
-*			- Changed PlayerSpawn to give health to all infected players when spawned. This should fix a rare bug.
+*		- Changed PlayerSpawn to give health to all infected players when spawned. This should fix a rare bug.
 * Version 1.4.3
-*			- All4Dead will now actually take notice of what you put in plugin.all4dead.cfg.
-*			- Added "a4d_vs_randomise_boss_locations" ConVar.
-*			- Added warning if plugin.all4dead.cfg version does not match plugin version.
-*			- Fixed bug where ResetToDefaults would force coop mode on versus maps.
-*			- Removed hibernation timer. It was causing errors and was unnecessary after all.
-*			- Reverted change to PlayerSpawn made in 1.4.2. The old behavior was correct.	
+*		- All4Dead will now actually take notice of what you put in plugin.all4dead.cfg.
+*		- Added "a4d_vs_randomise_boss_locations" ConVar.
+*		- Added warning if plugin.all4dead.cfg version does not match plugin version.
+*		- Fixed bug where ResetToDefaults would force coop mode on versus maps.
+*		- Removed hibernation timer. It was causing errors and was unnecessary after all.
+*		- Reverted change to PlayerSpawn made in 1.4.2. The old behavior was correct.	
 * Version 1.4.4
-*     - Automatically change "z_spawn_safety_range" to match the game mode in play.
-*     - Changed behaviour so versus mode is now continuously forced and safe from tampering.
-*     - Fixed a bug where Event_BossSpawnsSet would not reset its own changes to ForceTank and ForceWitch on map changes.
-*     - Fixed a bug with EnableOldVersusLogic reporting incorrect state changes.
-*     - Fixed a bug where boss spawn tracking was sometimes not being reset correctly between maps.
-*     - Fixed a bug where EnableOldVersusLogic would display a misleading notification.       
-*     - Worked around RoundEnd being called twice! (once at the end of a round and again just before a new round starts) 
+*       - Automatically change "z_spawn_safety_range" to match the game mode in play.
+*       - Changed behaviour so versus mode is now continuously forced and safe from tampering.
+*       - Fixed a bug where Event_BossSpawnsSet would not reset its own changes to ForceTank and ForceWitch on map changes.
+*       - Fixed a bug with EnableOldVersusLogic reporting incorrect state changes.
+*       - Fixed a bug where boss spawn tracking was sometimes not being reset correctly between maps.
+*       - Fixed a bug where EnableOldVersusLogic would display a misleading notification.       
+*       - Worked around RoundEnd being called twice! (once at the end of a round and again just before a new round starts) 
 * Version 1.4.5
-*			- Removed force versus feature (it was an ugly hack and is no longer necessary now all maps are playable on versus)
-* Version 1.4.6
-*     - Added 'Back' functionality to the submenus to make navigation of the menu system easier
+*       - Removed force versus feature (it was an ugly hack and is no longer necessary now all maps are playable on versus)
 */
 
-/* Define constants */
-#define PLUGIN_VERSION    "1.4.6"
-#define PLUGIN_NAME       "All4Dead"
-#define PLUGIN_TAG  	  	"[A4D] "
-#define MAX_PLAYERS				14		
+// Define constants
+#define PLUGIN_VERSION  "1.4.5"
+#define PLUGIN_TAG      "[A4D] "
+#define MAX_PLAYERS     14		
 
-/* Include necessary files */
+// Include necessary files
 #include <sourcemod>
-/* Make the admin menu optional */
 #undef REQUIRE_PLUGIN
 #include <adminmenu>
 
-/* Create ConVar Handles */
-new Handle:NotifyPlayers = INVALID_HANDLE;
-new Handle:AutomaticPlacement = INVALID_HANDLE;
+// Create ConVar handles
+new Handle:notify_players = INVALID_HANDLE;
+new Handle:automatic_placement = INVALID_HANDLE;
 new Handle:IdenticalBosses = INVALID_HANDLE;
 new Handle:UseOldLogic = INVALID_HANDLE;
 
@@ -778,7 +771,6 @@ public Action:Menu_Director(client, args)
 {
 	new Handle:menu = CreateMenu(MenuHandler_Director)
 	SetMenuTitle(menu, "Director Commands")
-	SetMenuExitBackButton(menu, true);
 	
 	AddMenuItem(menu, "fp", "Force a panic event to start")
 	if (GetConVarBool(FindConVar("director_panic_forever"))) { AddMenuItem(menu, "pf", "End non-stop panic events"); } else { AddMenuItem(menu, "pf", "Force non-stop panic events"); }
@@ -841,14 +833,6 @@ public MenuHandler_Director(Handle:menu, MenuAction:action, cindex, itempos) {
 	{
 		CloseHandle(menu)
 	}
-	/* If someone presses 'back' (8), return to main All4Dead menu */
-	else if (action == MenuAction_Cancel)
-	{
-		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
-		{
-			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
-		}
-	}
 }
 
 
@@ -857,7 +841,6 @@ public Action:Menu_SpawnInfected(client, args)
 {
 	new Handle:menu = CreateMenu(MenuHandler_SpawnInfected)
 	SetMenuTitle(menu, "Spawn Infected")
-	SetMenuExitBackButton(menu, true);
 	AddMenuItem(menu, "st", "Spawn a tank")
 	AddMenuItem(menu, "sw", "Spawn a witch")
 	AddMenuItem(menu, "sb", "Spawn a boomer")
@@ -903,21 +886,12 @@ public MenuHandler_SpawnInfected(Handle:menu, MenuAction:action, cindex, itempos
 	{
 		CloseHandle(menu)
 	}
-	/* If someone presses 'back' (8), return to main All4Dead menu */
-	else if (action == MenuAction_Cancel)
-	{
-		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
-		{
-			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
-		}
-	}
 }
 
 /* This menu deals with spawning weapons */
 public Action:Menu_SpawnWeapons(client, args) {
 	new Handle:menu = CreateMenu(MenuHandler_SpawnWeapons)
 	SetMenuTitle(menu, "Spawn Weapons")
-	SetMenuExitBackButton(menu, true);
 	AddMenuItem(menu, "sa", "Spawn an auto shotgun")
 	AddMenuItem(menu, "sh", "Spawn a hunting rifle")
 	AddMenuItem(menu, "sp", "Spawn a pistol")	
@@ -956,21 +930,12 @@ public MenuHandler_SpawnWeapons(Handle:menu, MenuAction:action, cindex, itempos)
 	{
 		CloseHandle(menu)
 	}
-	/* If someone presses 'back' (8), return to main All4Dead menu */
-	else if (action == MenuAction_Cancel)
-	{
-		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
-		{
-			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
-		}
-	}
 }
 
 /* This menu deals with spawning items */
 public Action:Menu_SpawnItems(client, args) {
 	new Handle:menu = CreateMenu(MenuHandler_SpawnItems)
 	SetMenuTitle(menu, "Spawn Items")
-	SetMenuExitBackButton(menu, true);
 	AddMenuItem(menu, "sg", "Spawn a gas tank")
 	AddMenuItem(menu, "sm", "Spawn a medkit")
 	AddMenuItem(menu, "sv", "Spawn a molotov")
@@ -1009,14 +974,6 @@ public MenuHandler_SpawnItems(Handle:menu, MenuAction:action, cindex, itempos) {
 	{
 		CloseHandle(menu)
 	}
-	/* If someone presses 'back' (8), return to main All4Dead menu */
-	else if (action == MenuAction_Cancel)
-	{
-		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
-		{
-			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
-		}
-	}
 }
 
 /* This menu deals with all Configuration commands that don't fit into another category */
@@ -1024,7 +981,6 @@ public Action:Menu_Config(client, args)
 {
 	new Handle:menu = CreateMenu(MenuHandler_Config)
 	SetMenuTitle(menu, "Configuration Commands")
-	SetMenuExitBackButton(menu, true);
 	if (GetConVarBool(NotifyPlayers)) { AddMenuItem(menu, "pn", "Disable player notifications"); } else { AddMenuItem(menu, "pn", "Enable player notifications"); }
 	AddMenuItem(menu, "rs", "Restore all settings to game defaults now")
 	SetMenuExitButton(menu, true)
@@ -1055,14 +1011,6 @@ public MenuHandler_Config(Handle:menu, MenuAction:action, cindex, itempos) {
 	{
 		CloseHandle(menu)
 	}
-	/* If someone presses 'back' (8), return to main All4Dead menu */
-	else if (action == MenuAction_Cancel)
-	{
-		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
-		{
-			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
-		}
-	}
 }
 
 
@@ -1070,7 +1018,6 @@ public MenuHandler_Config(Handle:menu, MenuAction:action, cindex, itempos) {
 public Action:Menu_Versus(client, args) {
 	new Handle:menu = CreateMenu(MenuHandler_Versus)
 	SetMenuTitle(menu, "Versus Settings")
-	SetMenuExitBackButton(menu, true);
 	if (GetConVarBool(FindConVar("sb_all_bot_team"))) { AddMenuItem(menu, "bc", "Require at least one human survivor"); } else { AddMenuItem(menu, "bc", "Allow the game to start with no human survivors"); }		
 	if (GetConVarBool(FindConVar("versus_boss_spawning"))) { AddMenuItem(menu, "ol", "Randomise the location of boss spawns"); } else { AddMenuItem(menu, "ol", "Disable randomising of boss spawns"); }
 	if (!GetConVarBool(FindConVar("versus_boss_spawning"))) {	
@@ -1113,14 +1060,6 @@ public MenuHandler_Versus(Handle:menu, MenuAction:action, cindex, itempos) {
 	else if (action == MenuAction_End)
 	{
 		CloseHandle(menu)
-	}
-	/* If someone presses 'back' (8), return to main All4Dead menu */
-	else if (action == MenuAction_Cancel)
-	{
-		if (itempos == MenuCancel_ExitBack && AdminMenu != INVALID_HANDLE)
-		{
-			DisplayTopMenu(AdminMenu, cindex, TopMenuPosition_LastCategory);
-		}
 	}
 }
 
