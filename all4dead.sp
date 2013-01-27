@@ -68,10 +68,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *     - Fixed a bug where boss spawn tracking was sometimes not being reset correctly between maps.
 *     - Fixed a bug where EnableOldVersusLogic would display a misleading notification.       
 *     - Worked around RoundEnd being called twice! (once at the end of a round and again just before a new round starts) 
+* Version 1.4.5
+*			- Removed force versus feature (it was an ugly hack and is no longer necessary now all maps are playable on versus)
 */
 
 /* Define constants */
-#define PLUGIN_VERSION    "1.4.4"
+#define PLUGIN_VERSION    "1.4.5"
 #define PLUGIN_NAME       "All4Dead"
 #define PLUGIN_TAG  	  	"[A4D] "
 #define MAX_PLAYERS				14		
@@ -102,8 +104,6 @@ new bool:TankHasSpawned = false
 new bool:WitchHasSpawned = false
 new bool:CurrentlySpawning = false
 new bool:DirectorIsEnabled = true
-new bool:ForceVersusOnMapStart = false
-new bool:AdditionalTeamChangesRequired = false
 new bool:BossSpawnsSet = false	
 
 
@@ -126,11 +126,9 @@ public OnPluginStart() {
 	UseOldLogic = CreateConVar("a4d_vs_randomise_boss_locations", "0", "Whether or not we randomise boss locations in versus mode (old versus logic)", FCVAR_PLUGIN);		
 	IdenticalBosses = CreateConVar("a4d_vs_ensure_identical_bosses", "0", "When using the old versus logic do we ensure that both teams get the same type of bosses.", FCVAR_PLUGIN); 			
 	CreateConVar("a4d_zombies_to_add", "10", "The amount of zombies to add when an admin requests more zombies.", FCVAR_PLUGIN);
-	HookConVarChange(FindConVar("director_no_human_zombies"), OnConVarChange_SetVersusMode)	
 	/* We make sure that only admins that are permitted to cheat are allow to run these commands */
 	/* Register all the director commands */
 	RegAdminCmd("a4d_add_zombies", Command_AddZombies, ADMFLAG_CHEATS);	
-	RegAdminCmd("a4d_always_force_versus", Command_AlwaysForceVersus, ADMFLAG_CHEATS);
 	RegAdminCmd("a4d_delay_rescue", Command_DelayRescue, ADMFLAG_CHEATS);
 	RegAdminCmd("a4d_enable_all_bot_teams", Command_EnableAllBotTeam, ADMFLAG_CHEATS);
 	RegAdminCmd("a4d_enable_auto_placement", Command_EnableAutoPlacement, ADMFLAG_CHEATS);
@@ -140,7 +138,6 @@ public OnPluginStart() {
 	RegAdminCmd("a4d_force_panic", Command_ForcePanic, ADMFLAG_CHEATS);
 	RegAdminCmd("a4d_force_tank", Command_ForceTank, ADMFLAG_CHEATS);
 	RegAdminCmd("a4d_force_witch", Command_ForceWitch, ADMFLAG_CHEATS);
-	RegAdminCmd("a4d_force_versus", Command_ForceVersus, ADMFLAG_CHEATS);
 	RegAdminCmd("a4d_panic_forever", Command_PanicForever, ADMFLAG_CHEATS);	
 	RegAdminCmd("a4d_reset_to_defaults", Command_ResetToDefaults, ADMFLAG_CHEATS);
 	RegAdminCmd("a4d_spawn_infected", Command_SpawnInfected, ADMFLAG_CHEATS);
@@ -207,17 +204,6 @@ public OnLibraryRemoved(const String:name[]) {
 }
 /* Event Handlers */
 
-/* If someone or something attempts to change versus mode while it is forced change it back. */
-public OnConVarChange_SetVersusMode(Handle:convar, const String:oldValue[], const String:newValue[]) {
-	/* If versus mode is off and we have been told to enforc versus mode */	
-	if (GetConVarBool(convar) && ForceVersusOnMapStart) {
-		ForceVersus(0, true)
-		StripAndChangeServerConVarInt("vs_max_team_switches", 1)
-		LogAction(0, -1, "(%L) set %s to %i", 0, "vs_max_team_switches", 1);
-		LogAction(0, -1, "Forced versus mode for this round");
-	}
-}
-
 /* If a boss has spawned make sure we make a note of it so we can spawn it for the other team as well */
 public Action:Event_BossSpawn(Handle:event, const String:name[], bool:dontBroadcast) {
 	if (GetConVarBool(IdenticalBosses)) {
@@ -232,14 +218,15 @@ public Action:Event_BossSpawn(Handle:event, const String:name[], bool:dontBroadc
 /* When the round ends force boss spawns for the next team if appropriate. */
 public Action:Event_BossSpawnsSet(Handle:event, const String:name[], bool:dontBroadcast) {
 	/* If we are enforcing identical bosses and versus mode is on (phew!) ensure consistency */
-	if (GetConVarBool(IdenticalBosses) && !GetConVarBool(FindConVar("director_no_human_zombies")) && !GetConVarBool(FindConVar("versus_boss_spawning")) && !BossSpawnsSet) {
+	new String:GameMode[16]
+	GetConVarString(FindConVar("mp_gamemode"), GameMode, sizeof(GameMode))	
+	if (GetConVarBool(IdenticalBosses) && StrEqual(GameMode, "versus") && !GetConVarBool(FindConVar("versus_boss_spawning")) && !BossSpawnsSet) {
 		ForceTank(0,TankHasSpawned)
 		ForceWitch(0,WitchHasSpawned)
 		LogAction(0, -1, "Ensured consistency of boss spawns for the next round.");
 		BossSpawnsSet = true
 	}
 }
-
 
 /* If we have just spawned something, make sure it has max health */
 public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast) {
@@ -463,112 +450,6 @@ ForceWitch(client, bool:value) {
 	LogAction(client, -1, "(%L) set %s to %i", client, command, value);	
 }
 
-/* Force the game into versus mode */
-/* This enables you to play versus on coop maps. */
-public Action:Command_ForceVersus(client, args) {
-	
-	if (args < 1) { PrintToConsole(client, "Usage: a4d_force_versus <0|1>"); return Plugin_Handled; }	
-
-	
-	new String:value[2]
-	GetCmdArg(1, value, sizeof(value))
-
-	if (StrEqual(value, "0")) {
-		ForceVersus(client, false)		
-	} else if (StrEqual(value, "1")) {
-		ForceVersus(client, true)
-	} else {
-		PrintToConsole(client, "Usage: a4d_force_versus <0|1>")
-	}
-	return Plugin_Handled;
-}
-
-ForceVersus(client, bool:value) {
-	new String:command[] = "director_no_human_zombies";
-	if (value == false) {
-		/* Disable the hook with prevents tampering otherwise this won't work. */
-		ForceVersusOnMapStart = false
-		StripAndChangeServerConVarBool(command, true)
-		StripAndChangeServerConVarInt("z_spawn_safety_range", 550)
-		LogAction(client, -1, "(%L) set %s to %i", client, command, true);
-		MoveInfectedToSpectator()
-	} else {
-		StripAndChangeServerConVarBool(command, false)
-		StripAndChangeServerConVarInt("z_spawn_safety_range", 200)
-		LogAction(0, -1, "(%L) set %s to %i", 0, "z_spawn_safety_range", 200);
-		LogAction(client, -1, "(%L) set %s to %i", client, command, false);
-	}
-	if (GetConVarBool(NotifyPlayers) == true) {	
-		if (value == false) {
-			ShowActivity2(client, PLUGIN_TAG, "Versus mode has been disabled");	
-		} else {
-			ShowActivity2(client, PLUGIN_TAG, "Versus mode has been enabled");
-		}
-	}
-	
-}
-
-/* Stop players from getting trapped in limbo when versus mode is disabled */
-MoveInfectedToSpectator() {
-	new client = 1
-	while (client < MAX_PLAYERS) {
-		if (IsClientConnected(client) && !IsFakeClient(client)) {
-			if (GetClientTeam(client) == 3) {
-				ChangeClientTeam(client, 1)
-				LogAction(client, -1, "%N was automatically moved to the spectator team.", client);
-				AdditionalTeamChangesRequired = true
-			}
-		}
-		client++;
-	}
-	if (AdditionalTeamChangesRequired) {
-		GrantTeamChanges()
-	}
-}
-
-/* Grant additional team changes if we have disabled versus mode and players have been forced to swap */
-GrantTeamChanges() {
-	new team_changes = GetConVarInt(FindConVar("vs_max_team_switches"))
-	team_changes++;
-	StripAndChangeServerConVarInt("vs_max_team_switches", team_changes)
-	LogAction(0, -1, "(%L) set %s to %i", 0, "vs_max_team_switches", team_changes);
-	AdditionalTeamChangesRequired = false
-}
-
-
-/* Force the game to always start in versus mode */
-/* This enables you to play versus across a series of coop maps without forcing versus each time */
-public Action:Command_AlwaysForceVersus(client, args) {
-	
-	if (args < 1) { PrintToConsole(client, "Usage: a4d_always_force_versus <0|1>"); return Plugin_Handled; }	
-
-	
-	new String:value[2]
-	GetCmdArg(1, value, sizeof(value))
-
-	if (StrEqual(value, "0")) {
-		AlwaysForceVersus(client, false)		
-	} else if (StrEqual(value, "1")) {
-		AlwaysForceVersus(client, true)
-	} else {
-		PrintToConsole(client, "Usage: a4d_always_force_versus <0|1>")
-	}
-	return Plugin_Handled;
-}
-
-AlwaysForceVersus(client, bool:value) {
-	ForceVersusOnMapStart = value
-	if (GetConVarBool(NotifyPlayers) == true) {	
-		if (value == true) {
-			ShowActivity2(client, PLUGIN_TAG, "Now forcing versus mode until server hibernation");	
-		} else {
-			ShowActivity2(client, PLUGIN_TAG, "Using map specified game modes");
-		}
-	}
-	LogAction(client, -1, "(%L) set %s to %i", client, "internal variable ForceVersusAcrossMaps", value);		
-}
-
-
 /* This toggles the AI Director on or off */
 /* Since there is no way to query the directors state in-game, we keep track of this infomation ourself in a4d_director_enabled */
 /* The mod assumes that the director is enabled at the start of each map */
@@ -725,20 +606,12 @@ public Action:Command_ResetToDefaults(client, args) {
 }
 
 ResetToDefaults(client) {
-	new String:map[64]
-	GetCurrentMap(map, sizeof(map))
-	/* Only force coop mode if we are not on a versus map */	
-	if (!StrContains(map, "vs")) {
-		ForceVersus(client, false)
-	}
 	ForceTank(client, false)
 	ForceWitch(client, false)
 	PanicForever(client, false)
 	DelayRescue(client, false)
 	EnableOldVersusLogic(client, false)
 	EnableIdenticalBosses(client, false)
-	StripAndChangeServerConVarInt("vs_max_team_switches", 1)
-	LogAction(client, -1, "(%L) set %s to %i", client, "vs_max_team_switches", 1);
 	StripAndChangeServerConVarInt("z_mega_mob_size", 50);
 	LogAction(client, -1, "%L) set %s to %i", client, "z_mob_spawn_max_size", 50);
 	StripAndChangeServerConVarInt("z_mob_spawn_max_size", 30)
@@ -1150,8 +1023,6 @@ public MenuHandler_Config(Handle:menu, MenuAction:action, cindex, itempos) {
 public Action:Menu_Versus(client, args) {
 	new Handle:menu = CreateMenu(MenuHandler_Versus)
 	SetMenuTitle(menu, "Versus Settings")
-	if (GetConVarBool(FindConVar("director_no_human_zombies"))) { AddMenuItem(menu, "fv", "Force a versus game"); } else { AddMenuItem(menu, "fv", "Disable versus mode"); }
-	if (ForceVersusOnMapStart == true) { AddMenuItem(menu, "av", "Do not force versus gameplay across maps"); } else { AddMenuItem(menu, "av", "Force versus gameplay until server hibenation"); }
 	if (GetConVarBool(FindConVar("sb_all_bot_team"))) { AddMenuItem(menu, "bc", "Require at least one human survivor"); } else { AddMenuItem(menu, "bc", "Allow the game to start with no human survivors"); }		
 	if (GetConVarBool(FindConVar("versus_boss_spawning"))) { AddMenuItem(menu, "ol", "Randomise the location of boss spawns"); } else { AddMenuItem(menu, "ol", "Disable randomising of boss spawns"); }
 	if (!GetConVarBool(FindConVar("versus_boss_spawning"))) {	
@@ -1167,30 +1038,18 @@ public MenuHandler_Versus(Handle:menu, MenuAction:action, cindex, itempos) {
 	if (action == MenuAction_Select) {
 		switch (itempos) {
 			case 0: {
-				if (GetConVarBool(FindConVar("director_no_human_zombies"))) { 
-					ForceVersus(cindex, true) 
-				} else {
-					ForceVersus(cindex, false) 
-				} 
-			}	case 1: {
-				if (ForceVersusOnMapStart) { 
-					AlwaysForceVersus(cindex, false) 
-				} else {
-					AlwaysForceVersus(cindex, true) 
-				} 
-			} case 2: {
 				if (GetConVarBool(FindConVar("sb_all_bot_team"))) { 
 					EnableAllBotTeam(cindex, false) 
 				} else {
 					EnableAllBotTeam(cindex, true) 
 				} 
-			} case 3: {
+			} case 1: {
 				if (GetConVarBool(FindConVar("versus_boss_spawning"))) { 
 					EnableOldVersusLogic(cindex, true) 
 				} else {
 					EnableOldVersusLogic(cindex, false) 
 				} 
-			} case 4: {
+			} case 2: {
 				if (GetConVarBool(IdenticalBosses)) { 
 					EnableIdenticalBosses(cindex, false) 
 				} else {
